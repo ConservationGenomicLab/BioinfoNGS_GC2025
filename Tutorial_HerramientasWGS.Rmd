@@ -1,0 +1,210 @@
+---
+title: "Bioinformática para datos masivos"
+subtitle: Workflow para WGS
+author: "M.C. Anahí Canedo Téxon"
+date: "07 de mayo 2025"
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+
+---
+
+#### <span style="color: #8B1A1A;"> **MANOS A LA OBRA, AHORA SÍ COMENCEMOS A HACER BIOINFORMÁICA! **</span>  
+
+# <span style="color: #00868B;"> **Exploración de datos **</span> 
+
+####  Conocer tu directorio de trabajo con *pwd*
+```{bash}
+# pwd
+```
+#### ¿Qué archivos se encuentran dentro de mi directorio actual?
+```{bash}
+# ls
+```
+
+```{bash}
+# Utiliza otros parámetro para modificar las opciones de visulización con ls
+# Mi favorita: 
+# ls -ltr
+```
+
+#### Crear carpetas
+```{bash}
+# mkdir 1.RawData
+# mkdir 2.QualityControl
+# mkdir 3.Assembly 
+
+```
+
+#### Mover archivos de directorio
+```{bash}
+# mv *.fastq.gz 1.RawData
+```
+
+#### Cambiar de directorio de trabajo
+```{bash}
+# cd 1.RawData
+# Confrima que cambiaste de directorio: 
+# pwd
+# Verifica que hayas movido los archivos *.fastq.gz al directorio 1.RawData
+# ls
+```
+
+#### Descomprimir archivos con terminación *.gz* 
+```{bash}
+# gunzip Genome03_sub1.fastq.gz
+```
+
+#### Comprimir archivos
+```{bash}
+# gzip Genome03_sub1.fastq
+```
+
+#### Visualizar archivos
+```{bash}
+# zless Genome03_sub1.fastq.gz
+```
+
+#### ¿Cuántas reads tenemos en cada archivo del genoma? 
+- Necesitamos conocer el id de nuestros reads, e identificar la parte constante que se repite entre los encabezados
+```{bash}
+ # zcat Genome03_sub1.fastq.gz| head
+```
+
+- Ya que identificamos un string/patrón de búsqueda
+```{bash}
+# zcat Genome03_sub1.fastq.gz| grep -c "@MISEQ-LAB244-W7"
+```
+
+
+
+#### Descargar archivos SRA  
+<https://www.ncbi.nlm.nih.gov/sra/docs/sradownload/>
+# Helicobacter pylori: SRR31908165  
+# Escherichia coli: SRR14138365  
+# DRR053269:Fago phiX174 de Escherichia  
+
+```{bash}
+# pwd
+# prefetch DRR053269
+# fastq-dump --split-files --gzip DRR053269
+```
+
+
+#### Subset de reads
+```{bash}
+# seqtk sample -s100 R1_DRR053269.fastq 100000 > sub1_DRR053269.fastq
+# seqtk sample -s100 R2_DRR053269.fastq 100000 > sub2_DRR053269.fastq
+```
+
+#### Verifica que hayas obtenido 100000 reads con el comando grep 
+
+
+# <span style="color: #00868B;"> **Control de calidad**</span> 
+
+#### Inspección visual de reads
+
+fastqc seqfile1 seqfile2 .. seqfileN  
+
+```{bash}
+# fastqc Genome03_sub1.fastq.gz Genome03_sub2.fastq.gz
+```
+
+#### Recorte de calidad:
+
+Pide el manual en la terminal
+```{bash}
+# TrimmomaticPE 
+```
+
+Pregúntale a  Google <span style="color: #8B6508;"> **¿How to run trimmomatic in linux?**</span>  y complementa la explicación para poder correr el programa
+http://www.usadellab.org/cms/?page=trimmomatic 
+
+~~~ 
+**The trimming steps are**:
+
+**ILLUMINACLIP**: Cut adapter and other illumina-specific sequences from the read.
+**SLIDINGWINDOW**: Perform a sliding window trimming, cutting once the average quality within the window falls below a threshold.
+**LEADING**: Cut bases off the start of a read, if below a threshold quality
+**TRAILING**: Cut bases off the end of a read, if below a threshold quality
+**CROP**: Cut the read to a specified length
+**HEADCROP**: Cut the specified number of bases from the start of the read
+**MINLEN**: Drop the read if it is below a specified length  
+
+**EJEMPLO**:  
+
+TrimmomaticPE -phred33 input_forward.fq.gz input_reverse.fq.gz output_forward_paired.fq.gz output_forward_unpaired.fq.gz output_reverse_paired.fq.gz output_reverse_unpaired.fq.gz ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:36
+
+~~~
+
+#### Probar diferentes opciones y analizar los resultados
+```{bash}
+#TrimmomaticPE -phred33 Genome03_sub1.fastq.gz Genome03_sub2.fastq.gz Genome03_forward_paired.fq.gz Genome03_forward_unpaired.fq.gz Genome03_reverse_paired.fq.gz Genome03_reverse_unpaired.fq.gz ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:30 MINLEN:30
+
+```
+
+#### Modifica algunos parámetros: Realiza un corte de calidad mínima de 20 en una ventana de 5 pb, y manten una longitud minima del read de 70 pb.
+
+#### ¿Cuántas reads obtuvimos para cada archivo?
+```{bash}
+# zcat Genome03_sub1.fastq.gz | grep -c "@MISEQ-LAB244-W7"
+```
+
+#### Comprueba y analiza los resultados para tomar decisiones:
+```{bash}
+# fastqc 
+```
+<span style="color: #8B6508;"> **¿Con cuál filtro te quedas para continuar la pipeline y ensamblar tu genoma?**</span> 
+
+
+# <span style="color: #00868B;"> **Ensamble del Genoma**</span> 
+
+#### Extraer las secuencias a formato fasta
+
+```{bash}
+#gunzip  Genome03_forward_paired.fq.gz
+#sed -n '1~4s/^@/>/p;2~4p' Genome03_forward_paired.fq > Genome03_forward.fasta
+
+```
+
+#### Revisas el manual de velveth / velvethg
+
+1. Encontrar el k-mer adecuado
+```{bash}
+#velveth velvet_out 21,32,2 -shortPaired -fasta -separate Genome03_forward.fasta Genome03_reverse.fasta
+
+#velveth velvet_out 21,32,2 -shortPaired -fastq -separate Genome03_forward_paired.fq Genome03_reverse_paired.fq
+
+```
+
+2. Ensamblar el genoma probando los distintos k-mers
+#### Ensamble 
+```{bash}
+#for ((i=21; i<32; i+=2));  do velvetg velvet_out_$i -cov_cutoff auto -ins_length 250 -min_contig_lgth 100; done
+```
+
+```{bash}
+# cd velvet_out_21
+# grep -c ">"  contigs.fa
+# cd ../ 
+# grep -c ">" velvet_out_*/contigs.fa
+```
+
+
+# <span style="color: #00868B;"> **Métricas de ensamble**</span>
+```{bash}
+# quast.py velvet_out_29/contigs.fa -o metricas_29
+
+```
+
+<span style="color: #8B6508;"> **¿Cuál es el mejor ensamble? **</span> 
+
+
+# <span style="color: #00868B;"> **Anotación**</span>
+```{bash}
+# prokka --outdir Prokka_Annotation --prefix Pseudo --locustag locus --genus Pseudomonas --species aeruginosa --kingdom Bacteria  --evalue 0.0000000001 contigs.fa
+```
+
+
